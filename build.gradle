@@ -1,5 +1,4 @@
 apply plugin: 'java'
-apply plugin: 'eclipse'
 
 version = '1.0'
 sourceCompatibility = 1.8
@@ -10,7 +9,7 @@ task fatJar(type: Jar) {
     manifest {
         attributes 'Implementation-Title': 'Verify certs example',
                 'Implementation-Version': version,
-                'Main-Class': 'com.jbirdvegas.CertVerify'
+                'Main-Class': 'ist.cert.example.java.CertVerify'
     }
     baseName = project.name + '-all'
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }

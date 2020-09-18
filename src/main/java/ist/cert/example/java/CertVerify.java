@@ -1,4 +1,4 @@
-package com.jbirdvegas;
+package ist.cert.example.java;
 
 import org.json.JSONObject;
 
@@ -65,11 +65,8 @@ public class CertVerify {
     private static String getThumbprint(X509Certificate cert)
             throws NoSuchAlgorithmException, CertificateEncodingException {
         MessageDigest md = MessageDigest.getInstance("SHA-256");
-        byte[] der = cert.getEncoded();
-        md.update(der);
-        byte[] digest = md.digest();
-        String digestHex = DatatypeConverter.printHexBinary(digest);
-        return digestHex.toLowerCase();
+        md.update(cert.getEncoded());
+        return DatatypeConverter.printHexBinary(md.digest()).toLowerCase();
     }
 
     private String extractShaHash(String json) {
