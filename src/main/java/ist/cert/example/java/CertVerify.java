@@ -1,5 +1,6 @@
 package ist.cert.example.java;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -12,28 +13,32 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
-import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Optional;
+import java.util.Iterator;
+import java.util.List;
 
 public class CertVerify {
-    public String certInformation(String aURL) throws Exception {
+    public List<String> getHashesFromLocal(String aURL) throws Exception {
         URL destinationURL = new URL(aURL);
         HttpsURLConnection conn = (HttpsURLConnection) destinationURL.openConnection();
         conn.connect();
         Certificate[] certs = conn.getServerCertificates();
-        Optional<Certificate> first = Arrays.stream(certs).findFirst();
-        if (first.isPresent()) {
-            Certificate cert = first.get();
-            if (cert instanceof X509Certificate) {
-                X509Certificate x = (X509Certificate) cert;
-                return getThumbprint(x);
-            }
-        }
-        return aURL;
+        return Arrays.asList(Arrays.stream(certs).map(
+                certificate -> {
+                    try {
+                        MessageDigest md = MessageDigest.getInstance("SHA-256");
+                        md.update(certificate.getEncoded());
+                        return DatatypeConverter.printHexBinary(md.digest()).toLowerCase();
+                    } catch (CertificateEncodingException | NoSuchAlgorithmException e) {
+                        e.printStackTrace();
+                    }
+                    return null;
+                }
+        ).toArray(String[]::new));
     }
 
-    public String getJsonFromUrl(String url) {
+    public ArrayList<String> getHashesFromApi(String url) {
         HttpsURLConnection con = null;
         try {
             URL u = new URL(url);
@@ -46,7 +51,16 @@ public class CertVerify {
                 while ((line = br.readLine()) != null) {
                     sb.append(line).append("\n");
                 }
-                return extractShaHash(sb.toString());
+                JSONObject jsonObject = new JSONObject(sb.toString());
+                JSONArray chain = jsonObject.getJSONArray("chain");
+                ArrayList<String> resp = new ArrayList<>(chain.length());
+                for (int i = 0; i < chain.length(); i++) {
+                    resp.add(((JSONObject) chain.get(i))
+                            .getJSONObject("der")
+                            .getJSONObject("hashes")
+                            .getString("sha256"));
+                }
+                return resp;
             }
         } catch (IOException ex) {
             ex.printStackTrace();
@@ -62,27 +76,13 @@ public class CertVerify {
         return null;
     }
 
-    private static String getThumbprint(X509Certificate cert)
-            throws NoSuchAlgorithmException, CertificateEncodingException {
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-        md.update(cert.getEncoded());
-        return DatatypeConverter.printHexBinary(md.digest()).toLowerCase();
-    }
-
-    private String extractShaHash(String json) {
-        JSONObject jsonObject = new JSONObject(json);
-        JSONObject certificate = (JSONObject) jsonObject.get("certificate");
-        JSONObject hashes = (JSONObject) certificate.get("hashes");
-        return hashes.getString("sha256");
-    }
-
     public static void main(String[] args) throws Exception {
         CertVerify certVerify = new CertVerify();
         String domain = "urip.io";
-        String remoteSha256 = certVerify.getJsonFromUrl(String.format("https://api.cert.ist/%s", domain));
-        String localSha256 = certVerify.certInformation(String.format("https://%s", domain));
-        System.out.printf("Certificate hash via cert.ist api: %s%n", remoteSha256);
-        System.out.printf("Certificate hash via local Java:   %s%n", localSha256);
-        System.out.printf("Do certificate fingerprints match? %s%n", localSha256.equals(remoteSha256));
+        List<String> remoteSha256 = certVerify.getHashesFromApi(String.format("https://api.cert.ist/%s", domain));
+        List<String> localSha256 = certVerify.getHashesFromLocal(String.format("https://%s", domain));
+        System.out.printf("Certificate hash via cert.ist api: %s\n", remoteSha256);
+        System.out.printf("Certificate hash via local Java:   %s\n", localSha256);
+        System.out.printf("Do certificate fingerprints match? %s\n", localSha256.equals(remoteSha256));
     }
 }
