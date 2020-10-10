@@ -81,8 +81,8 @@ public class CertVerify {
         String domain = "urip.io";
         List<String> remoteSha256 = certVerify.getHashesFromApi(String.format("https://api.cert.ist/%s", domain));
         List<String> localSha256 = certVerify.getHashesFromLocal(String.format("https://%s", domain));
-        System.out.printf("Certificate hash via cert.ist api: %s\n", remoteSha256);
-        System.out.printf("Certificate hash via local Java:   %s\n", localSha256);
+        System.out.printf("Certificate chain hashes via cert.ist api: %s\n", remoteSha256);
+        System.out.printf("Certificate chain hashes via local Java:   %s\n", localSha256);
         System.out.printf("Do certificate fingerprints match? %s\n", localSha256.equals(remoteSha256));
     }
 }
